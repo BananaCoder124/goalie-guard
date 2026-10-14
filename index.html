@@ -41,8 +41,7 @@
         #gameOverText {
             display: none;
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: white;
             font-size: 30px;
@@ -70,9 +69,9 @@
             font-weight: bold;
             transition: background 0.2s;
         }
-        button:hover { background: #ff6b81; }
-        
-        /* Tyylikäs linkin kopiointipainike */
+        button:hover {
+            background: #ff6b81;
+        }
         .copy-btn {
             background: #2f3542;
             border: 1px solid #57606f;
@@ -89,9 +88,10 @@
         <div>Score: <span id="scoreValue">0</span></div>
         <div>Best: <span id="highScoreValue">0</span></div>
     </div>
-    
+
     <div id="gameArea">
         <canvas id="gameCanvas" width="400" height="500"></canvas>
+        
         <div id="gameOverText">
             GAME OVER!<br>
             <div class="btn-container">
@@ -101,172 +101,188 @@
         </div>
     </div>
 
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        const gameOverText = document.getElementById("gameOverText");
-        const scoreValue = document.getElementById("scoreValue");
-        const highScoreValue = document.getElementById("highScoreValue");
-        const copyBtn = document.getElementById("copyBtn");
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const gameOverText = document.getElementById("gameOverText");
+const scoreValue = document.getElementById("scoreValue");
+const highScoreValue = document.getElementById("highScoreValue");
+const copyBtn = document.getElementById("copyBtn");
 
-        // Game variables
-        let score = 0;
-        let highScore = localStorage.getItem("goalieGuardHighScore") || 0;
-        let gameRunning = true;
+// Pelimuuttujat
+let score = 0;
+let highScore = localStorage.getItem("goalieGuardHighScore") || 0;
+let gameRunning = false;
+let currentSpeed = 5; 
+let animationFrameId;
 
-        // Display initial high score
-        highScoreValue.innerText = highScore;
+highScoreValue.innerText = highScore;
 
-        // Goalkeeper (Player)
-        const player = {
-            x: 175,
-            y: 460,
-            width: 70,
-            height: 15,
-            color: "#1e90ff"
-        };
+// Maalivahti (Pelaaja)
+const player = { x: 175, y: 460, width: 70, height: 15, color: "#1e90ff" };
+// Pallo
+const ball = { x: 200, y: 50, radius: 12, speedX: 0, speedY: 0, color: "#ffffff" };
 
-        // Ball
-        const ball = {
-            x: 200,
-            y: 50,
-            radius: 12,
-            speedX: 3,
-            speedY: 4,
-            color: "#ffffff"
-        };
+// Hiiriohjaus
+canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    player.x = e.clientX - rect.left - player.width / 2;
+    if (player.x < 0) player.x = 0;
+    if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+});
 
-        // Mouse controls
-        canvas.addEventListener("mousemove", (e) => {
-            const rect = canvas.getBoundingClientRect();
-            player.x = e.clientX - rect.left - player.width / 2;
-            
-            // Prevent the goalkeeper from going out of bounds
-            if (player.x < 0) player.x = 0;
-            if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+// Kosketusohjaus mobiilille
+canvas.addEventListener("touchmove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    player.x = e.touches[0].clientX - rect.left - player.width / 2;
+    if (player.x < 0) player.x = 0;
+    if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+    e.preventDefault();
+});
+
+function setBallVelocity(angle) {
+    ball.speedX = Math.cos(angle) * currentSpeed;
+    ball.speedY = Math.sin(angle) * currentSpeed;
+}
+
+function resetBall() {
+    ball.x = canvas.width / 2;
+    ball.y = 50;
+    currentSpeed = 5; 
+    let randomAngle = (Math.random() * 90 + 45) * Math.PI / 180;
+    setBallVelocity(randomAngle);
+}
+
+function update() {
+    if (!gameRunning) return;
+
+    currentSpeed += 0.002;
+    let currentAngle = Math.atan2(ball.speedY, ball.speedX);
+    setBallVelocity(currentAngle);
+
+    ball.x += ball.speedX;
+    ball.y += ball.speedY;
+
+    if (ball.x - ball.radius < 0) { ball.x = ball.radius; ball.speedX = -ball.speedX; }
+    if (ball.x + ball.radius > canvas.width) { ball.x = canvas.width - ball.radius; ball.speedX = -ball.speedX; }
+    if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.speedY = -ball.speedY; }
+
+    if (ball.y + ball.radius >= player.y && ball.x >= player.x && ball.x <= player.x + player.width && ball.y - ball.radius < player.y + player.height) {
+        score++;
+        scoreValue.innerText = score;
+        let hitPoint = (ball.x - (player.x + player.width / 2)) / (player.width / 2);
+        let bounceAngle = (hitPoint * 60 - 90) * Math.PI / 180;
+        setBallVelocity(bounceAngle);
+        ball.y = player.y - ball.radius;
+    }
+
+    if (ball.y > canvas.height) {
+        gameRunning = false;
+        cancelAnimationFrame(animationFrameId);
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem("goalieGuardHighScore", highScore);
+            highScoreValue.innerText = highScore;
+        }
+        gameOverText.style.display = "block";
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2, 0, 80, 0, Math.PI);
+    ctx.stroke();
+
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+
+    ctx.fillStyle = ball.color;
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+}
+
+function gameLoop() {
+    if (!gameRunning) return;
+    update();
+    draw();
+    animationFrameId = requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+    cancelAnimationFrame(animationFrameId);
+    score = 0;
+    scoreValue.innerText = score;
+    gameRunning = true;
+    gameOverText.style.display = "none";
+    copyBtn.innerHTML = "🔗 Copy Game Link";
+    resetBall();
+    gameLoop();
+}
+
+// Luotettava linkin kopiointitoiminto varajärjestelmällä (Fallback)
+function copyGameLink() {
+    const playUrl = "https://bananacoder124.github.io/goalie-guard/";
+
+    // Yritetään ensin uutta Clipboard API:a
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(playUrl).then(() => {
+            showCopiedSuccess();
+        }).catch(err => {
+            console.warn("Clipboard API epäonnistui, yritetään varakeinoa...", err);
+            fallbackCopyText(playUrl);
         });
+    } else {
+        // Jos Clipboard API ei ole tuettu (esim. vanha selain tai vanha iframe-upotus)
+        fallbackCopyText(playUrl);
+    }
+}
 
-        // Touch controls (mobile)
-        canvas.addEventListener("touchmove", (e) => {
-            const rect = canvas.getBoundingClientRect();
-            player.x = e.touches[0].clientX - rect.left - player.width / 2;
-            if (player.x < 0) player.x = 0;
-            if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
-            e.preventDefault();
-        });
+// Varakeino kopioinnille (luodaan näkymätön tekstikenttä)
+function fallbackCopyText(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    
+    // Piilotetaan elementti näkyvistä
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
 
-        function resetBall() {
-            ball.x = canvas.width / 2;
-            ball.y = 50;
-            ball.speedY = 4 + score * 0.5; // Increases difficulty based on score
-            ball.speedX = (Math.random() - 0.5) * 6;
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showCopiedSuccess();
+        } else {
+            alert("Kopiointi epäonnistui. Voit kopioida linkin tästä: " + text);
         }
+    } catch (err) {
+        console.error("Varakeinokin epäonnistui: ", err);
+        alert("Kopiointi epäonnistui. Voit kopioida linkin tästä: " + text);
+    }
 
-        function update() {
-            if (!gameRunning) return;
+    document.body.removeChild(textArea);
+}
 
-            // Move the ball
-            ball.x += ball.speedX;
-            ball.y += ball.speedY;
+// Visuaalinen palaute onnistuneesta kopioinnista
+function showCopiedSuccess() {
+    copyBtn.innerHTML = "✅ Copied!";
+    setTimeout(() => {
+        copyBtn.innerHTML = "🔗 Copy Game Link";
+    }, 2000);
+}
 
-            // Wall collision (left/right)
-            if (ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) {
-                ball.speedX = -ball.speedX;
-            }
-
-            // Ceiling collision
-            if (ball.y - ball.radius < 0) {
-                ball.speedY = -ball.speedY;
-            }
-
-            // Goalkeeper (player) collision
-            if (ball.y + ball.radius >= player.y && 
-                ball.x >= player.x && 
-                ball.x <= player.x + player.width && 
-                ball.y - ball.radius < player.y + player.height) {
-                
-                ball.speedY = -ball.speedY;
-                score++;
-                scoreValue.innerText = score;
-                
-                // Add some spin depending on where the ball hits the paddle
-                let hitPoint = ball.x - (player.x + player.width / 2);
-                ball.speedX = hitPoint * 0.15;
-            }
-
-            // Ball goes past the player (goal conceded)
-            if (ball.y > canvas.height) {
-                gameRunning = false;
-                
-                // Check and save High Score
-                if (score > highScore) {
-                    highScore = score;
-                    localStorage.setItem("goalieGuardHighScore", highScore);
-                    highScoreValue.innerText = highScore;
-                }
-                
-                gameOverText.style.display = "block";
-            }
-        }
-
-        function draw() {
-            // Clear field
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw center circle and lines (football pitch look)
-            ctx.strokeStyle = "rgba(255,255,255,0.3)";
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(canvas.width / 2, 0, 80, 0, Math.PI);
-            ctx.stroke();
-
-            // Draw player (goalkeeper)
-            ctx.fillStyle = player.color;
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-
-            // Draw ball
-            ctx.fillStyle = ball.color;
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = "#000";
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-
-        function gameLoop() {
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        function startGame() {
-            score = 0;
-            scoreValue.innerText = score;
-            gameRunning = true;
-            gameOverText.style.display = "none";
-            // Palautetaan painikkeen teksti, jos se oli kopioitu-tilassa
-            copyBtn.innerHTML = "🔗 Copy Game Link";
-            resetBall();
-        }
-
-        // Toiminto, joka kopioi livenä olevan pelin osoitteen leikepöydälle
-        function copyGameLink() {
-            const playUrl = "https://bananacoder124.github.io/goalie-guard/";
-            
-            navigator.clipboard.writeText(playUrl).then(() => {
-                copyBtn.innerHTML = "✅ Copied!";
-                setTimeout(() => {
-                    copyBtn.innerHTML = "🔗 Copy Game Link";
-                }, 2000);
-            }).catch(err => {
-                console.error("Linkin kopiointi epäonnistui: ", err);
-            });
-        }
-
-        // Start the game for the first time
-        startGame();
-        gameLoop();
-    </script>
+startGame();
+</script>
 </body>
 </html>
