@@ -17,6 +17,16 @@
             height: 100vh;
             overflow: hidden;
         }
+        /* Pelin nimen tyyli ja korkeussijainti */
+        .game-title {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 35px; /* Nostaa nimen ylemmäs luomalla tilaa sen alle */
+            color: #1e90ff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            letter-spacing: 1px;
+            text-transform: none; /* Estää automaattiset suuraakkoset */
+        }
         #gameArea {
             background: #2ed573;
             border: 4px solid white;
@@ -83,6 +93,9 @@
     </style>
 </head>
 <body>
+
+    <!-- Pelin nimi lisätty halutussa muodossa -->
+    <div class="game-title">GoalieGuard</div>
 
     <div id="scoreBoard">
         <div>Score: <span id="scoreValue">0</span></div>
@@ -230,7 +243,7 @@ function startGame() {
 function copyGameLink() {
     const playUrl = "https://bananacoder124.github.io/goalie-guard/";
 
-    // Yritetään ensin uutta Clipboard API:a
+    // Yritetään ensin Clipboard API:a
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(playUrl).then(() => {
             showCopiedSuccess();
@@ -239,7 +252,6 @@ function copyGameLink() {
             fallbackCopyText(playUrl);
         });
     } else {
-        // Jos Clipboard API ei ole tuettu (esim. vanha selain tai vanha iframe-upotus)
         fallbackCopyText(playUrl);
     }
 }
@@ -249,7 +261,6 @@ function fallbackCopyText(text) {
     const textArea = document.createElement("textarea");
     textArea.value = text;
     
-    // Piilotetaan elementti näkyvistä
     textArea.style.top = "0";
     textArea.style.left = "0";
     textArea.style.position = "fixed";
@@ -270,7 +281,6 @@ function fallbackCopyText(text) {
         console.error("Varakeinokin epäonnistui: ", err);
         alert("Kopiointi epäonnistui. Voit kopioida linkin tästä: " + text);
     }
-
     document.body.removeChild(textArea);
 }
 
@@ -282,6 +292,7 @@ function showCopiedSuccess() {
     }, 2000);
 }
 
+// Aloitetaan peli automaattisesti
 startGame();
 </script>
 </body>
